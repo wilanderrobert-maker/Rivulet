@@ -513,3 +513,58 @@ workflows:
         submit_to_testflight: true
         beta_groups:
           - Rivulet External Plex Forum
+
+  rivulet-tvos-fel-unsigned:
+    name: Rivulet tvOS - Full FEL (unsigned IPA)
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+
+    environment:
+      vars:
+        XCODE_PROJECT: "Rivulet.xcodeproj"
+        XCODE_SCHEME: "Rivulet"
+      xcode: 27.2
+
+    scripts:
+      - name: Prepare build secrets
+        script: |
+          set -e
+          cp RivuletCore/Config/Secrets.swift.template RivuletCore/Config/Secrets.swift
+
+      - name: Enable official full FEL traits
+        script: |
+          set -e
+          python3 Scripts/enthusiast-build.py --fel
+
+      - name: Archive tvOS Release without signing
+        script: |
+          set -o pipefail
+          mkdir -p "$CM_BUILD_DIR/build/ipa" /tmp/xcodebuild_logs
+          xcodebuild archive \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Release \
+            -destination 'generic/platform=tvOS' \
+            -archivePath "$CM_BUILD_DIR/build/Rivulet-FEL.xcarchive" \
+            -onlyUsePackageVersionsFromResolvedFile \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            2>&1 | tee /tmp/xcodebuild_logs/fel-archive.log
+
+          test -d "$CM_BUILD_DIR/build/Rivulet-FEL.xcarchive/Products/Applications/Rivulet.app"
+
+      - name: Package unsigned IPA
+        script: |
+          set -e
+          STAGING="$CM_BUILD_DIR/build/ipa/staging"
+          mkdir -p "$STAGING/Payload"
+          ditto "$CM_BUILD_DIR/build/Rivulet-FEL.xcarchive/Products/Applications/Rivulet.app" "$STAGING/Payload/Rivulet.app"
+          cd "$STAGING"
+          zip -qry "$CM_BUILD_DIR/build/ipa/Rivulet-FEL-unsigned.ipa" Payload
+          test -s "$CM_BUILD_DIR/build/ipa/Rivulet-FEL-unsigned.ipa"
+          ls -lh "$CM_BUILD_DIR/build/ipa/Rivulet-FEL-unsigned.ipa"
+
+    artifacts:
+      - build/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
