@@ -534,7 +534,7 @@ workflows:
       - name: Enable official full FEL traits
         script: |
           set -e
-          python3 Scripts/enthusiast-build.py --fel
+          python3 Scripts/enthusiast-build.py --fel --height-audio
 
       - name: Archive tvOS Release without signing
         script: |
