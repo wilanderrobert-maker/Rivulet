@@ -536,6 +536,13 @@ workflows:
           set -e
           python3 Scripts/enthusiast-build.py --fel --height-audio
 
+      - name: Resolve Swift Package dependencies
+        script: |
+          set -e
+          xcodebuild -resolvePackageDependencies \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME"
+
       - name: Archive tvOS Release without signing
         script: |
           set -o pipefail
